@@ -1,0 +1,19 @@
+208-605-4071 - GIS num frm ITS Idaho
+https://gis.idaho.gov/parcels/
+https://idaho.maps.arcgis.com/apps/OnePane/basicviewer/index.html?appid=dcffc5dfcb9d41ea964ccf96d327bbff#
+
+
+
+# require ‘fastercsv’
+# FasterCSV.open(“csvfile2”,“w”) do |csv|
+# @scraper_data.each { |row| csv << row }
+# end
+
+# ex https://www.ruby-forum.com/t/how-to-write-array-value-into-csv-file/186676/3
+# FasterCSV.open(“csvfile1”,“w”) do |csv|
+# b.transpose.each { |row| csv << row }
+# end
+
+
+building csv video
+https://www.youtube.com/watch?v=Ts4nyoDfvHo
