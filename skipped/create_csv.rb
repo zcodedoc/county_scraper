@@ -1,7 +1,7 @@
 require 'csv'
 
 def csv_tool(h, data)
-  CSV.open('generated_desCo_skipped_accts.csv', 'wb') do |csv|
+  CSV.open('generated_desCo_skipped_accts_half.csv', 'wb') do |csv|
   # CSV.open('testing.csv', 'wb') do |csv|
     csv << h
     data.each do |row|
