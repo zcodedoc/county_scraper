@@ -14,3 +14,6 @@ CSV.open("Filter-List_OR.csv","wb") do |csv_out|
     # csv.by_row!
     csv.each{ |row| csv_out << row }
 end
+
+#filter code minic
+# https://www.ruby-forum.com/t/csv-delete-an-entry/242928/3
