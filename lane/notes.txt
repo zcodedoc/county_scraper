@@ -1,0 +1,13 @@
+full Lane property data
+council of gov: https://www.rlid.org/custom/lc/at/index.cfm?do=custom_LC_AT_propsearch.candidates&as_address=&as_maplot=1506000003100&as_account=
+taxlot ~> 1506000003100
+
+scrapping pg: https://www.rlid.org/custom/lc/at/index.cfm?do=custom_LC_AT_propsearch.report&ai_webapp_prop_report_id=2259838
+
+Lany Cty: https://apps.lanecounty.org/PropertyAccountInformation/Account/0021731
+-using acct_nums
+-page very slow 2 load
+
+Parcel loo-up: https://www.lanecounty.org/cms/One.aspx?portalId=3585881&pageId=5145461
+
+Parcles from: landgrid.com
