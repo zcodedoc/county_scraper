@@ -4,5 +4,8 @@
 # -click on Map & TaxLot link on left
 # lane: http://apps.lanecounty.org/PropertyAccountInformation/#
 # elmore: http://idahoparcels.us:8080/gm3/desktop/elmore.html#on=sketch/default;scalebar_feet/scalebar_feet;parcels/parcels;parcels1/parcels1;boundry/boundry;bing/roads&loc=0.29858214173896974;-12881402.949012272;5324187.540158878
-#
+
+#​parsing co​mpany data TEST lc​
+
+
 # public records: https://publicrecords.netronline.com/

@@ -6,15 +6,15 @@ require 'csv'
 
 lot_numbs = Array.new
 
-f = File.open('test-parcel-ids.csv', 'r')
+f = File.open('parcel_ids.csv', 'r')
 
 f.each_line {|line| lot_numbs << line.split("\r")[0] }
 # url = ''
 
 @scraper_data = []
 
-def insert_lot_number(num)
-  browser = Watir::Browser.new
+def insert_lot_number(num, index, browser)
+
   browser.goto 'http://query.co.jefferson.or.us/AandTWebQuery/ExternalLogin.aspx'
 
   #no button on page, used input tag, so find tag w/name & tell 2 click
@@ -32,14 +32,19 @@ def insert_lot_number(num)
 
   # binding.pry
 
+  # need 2 pause system, jefferson site rejecting automation
+  (index % 100 == 0) ? sleep(20) : sleep(4)
+  #
   if browser.url.include?('AccountID')
     # view HTML of page - aka page source
     # pass to nokogiri to parse
     scraper(browser.html, browser)
   else
     @scraper_data << [num, nil,'SKIPPED']
-    browser.quit
+    # browser.quit
   end
+
+  # puts num
 end
 
 def scraper(html, window)
@@ -107,8 +112,10 @@ end
 
 
 # binding.pry
-lot_numbs[1..-1].each do |parcel_id|
-  insert_lot_number(parcel_id)
+#Watir::Browser.new :chrome, switches: ['--incognito']
+@chrome_window = Watir::Browser.new
+lot_numbs[501..-1].each.with_index(1) do |parcel_id, idx|
+  insert_lot_number(parcel_id, idx, @chrome_window)
 end
 
 headers = ['Parcel ID', 'Account #', 'Last Name, First Name', 'Address', 'City, State Zip', 'Property County', 'Property Address', 'Property City, State Zip', 'RMV_Total', 'Additional Property Info']
