@@ -93,7 +93,19 @@ def parcel_scraper(html, id)
     # owner table has owner name & mailing addy
     owner_table = parsed_page.css('#ctlBodyPane_ctl01_mSection #ctlBodyPane_ctl01_ctl01_lstDeed')
     owner_mail_table = parsed_page.css('#ctlBodyPane_ctl01_mSection #ctlBodyPane_ctl01_ctl01_lstMailing span')
-
+    # sometimes mail table has no mailing info
+    # if two owners pulls data from 2nd row name, format on site
+    # reason 4 grabing LAST td
+    owner_table_name = owner_table[0].css('td').last.children[1].text
+    mail_table_name = owner_mail_table[0].child.text
+    if owner_table_name != mail_table_name
+      binding.pry
+      # must keep data in arr
+      arr = [parsed_page.css('#ctlBodyPane_ctl01_mSection #ctlBodyPane_ctl01_ctl01_lstDeed tr').last]
+      target_td = arr.first.children[-2]
+      owner_mail_table = target_td.children[1..-1].map{|node| node.text.strip unless node.text.strip == ''}.compact!
+    end
+    
     # want the 2nd set of data, 1st is header info
     # Owner name
     # capture return of owner_info_setup, since added data in method
