@@ -98,7 +98,12 @@ def parcel_scraper(html, id)
     # reason 4 grabing LAST td
     owner_table_name = owner_table[0].css('td').last.children[1].text
     mail_table_name = owner_mail_table[0].child.text
-    if owner_table_name != mail_table_name
+    # some owners have habit for humany as mailing addy, catching companies
+    # if co & deed owner are diff want to mail to deed holder addy
+    deedholder_info = owner_table[0].css('td').last.children.map{|node| node.text.strip}.delete_if(&:empty?)
+    # check that 3/mo elements are in arr b/c code above grabs all text which grabs info frm children nodes & shovel them into arr & remove empty
+    # if name doesn't match want to make sure there's a mailling addy in td box
+    if owner_table_name != mail_table_name && deedholder_info.count >= 3
       binding.pry
       # must keep data in arr
       arr = [parsed_page.css('#ctlBodyPane_ctl01_mSection #ctlBodyPane_ctl01_ctl01_lstDeed tr').last]
@@ -149,8 +154,17 @@ end
 
 # arr = ALL rrows in first column table
 def owner_info_setup(arr, new_csv_row, mail_arr)
-  # arr contains all td's
-  mailing_addy = mail_arr.first.children[1..-1].map(&:text).delete_if(&:empty?)
+  # mail arr might already be parsed, if mailing addy table had no data
+  # if parsed, mail arr will contain 3 strings owner name, addy & city, state zip
+  if mail_arr.count >= 3
+    mail_arr.shift
+    mailing_addy = mail_arr
+  else
+    # arr contains all td's
+    addy_arr = mail_arr.first.children[1..-1].map(&:text).delete_if(&:empty?)
+    mailing_addy = (addy_arr.count == 2) ? addy_arr : address_join(addy_arr)
+  end
+
   # site has 2 rows for 1 owner, header & owner info
   if arr.count > 2
     # binding.pry
@@ -159,8 +173,10 @@ def owner_info_setup(arr, new_csv_row, mail_arr)
         a_tag_data = td.css("a").map(&:text).delete_if(&:empty?)
         # binding.pry
         # avoiding tds w/br tags, they return [] for a_tag_data
-        # only want to enter if ther are NO a tags
-        if a_tag_data.empty? && !td.children.map(&:name).include?('br')
+        # only want to enter if ther are NO a tags OR a tag only have 1 set of txt
+        # AND there ARE is a span tag w/in TD - sometimes link is addy || person name
+        # when only a name, doesn't hv a 'SPAN' tag
+        if (a_tag_data.empty? || a_tag_data.size == 1) && !td.children.map(&:name).include?('br') && !td.css("span").empty?
           # if no a tags, target span class
           td.css("span").map(&:text).delete_if(&:empty?)
         else
@@ -290,6 +306,15 @@ def formated_cit_st_zip(mail_info, csv_row)
   # add owner city, state zip
   csv_row << updated_cit_st_zip
   csv_row
+end
+
+def address_join(arr)
+  cit_st_zip = arr.pop
+  address = arr.join(', ')
+  arr.clear # clear arr
+  #add elements again
+  arr << address && arr << cit_st_zip
+  arr
 end
 
 # main link https://beacon.schneidercorp.com/Application.aspx?AppID=325&LayerID=3398&PageTypeID=2&PageID=2260
