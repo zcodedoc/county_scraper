@@ -52,42 +52,80 @@ def insert_lot_number(parcel_id, portal)
   end
 end
 
+@co_keywords = ['LLC', 'LC', 'LLLP', 'LP', 'L P', 'LTD', 'INC', 'CORP', 'COMPANY', 'DEPT', 'CITY', 'COUNCIL', 'TRUST', 'ESTATE', 'IRA', 'ASSOCIATES', 'ASSOCIATION', 'PARTNERS', 'PARTNERSHIP', 'COUNTY', 'VILLAGE', 'BANK', 'FOUNDATION', 'CLUB', 'STEWARDSHIP', 'DIST', 'TR', 'CO', 'DBA', 'MANAGEMENT', 'CHURCH', 'CORPORTATION', 'ASSOC', 'SERVICE', 'SERVICES']
+
+# binding.pry
+def open_page(web)
+  # g2 page 2 search for parcel data - Jasper County
+  web.goto "https://beacon.schneidercorp.com/Application.aspx?AppID=325&LayerID=3398&PageTypeID=2&PageID=2260"
+
+  # authentiation via JS, so pausing browser to authentiation
+  sleep(5)
+end
+
+def insert_lot_number(parcel_id, portal)
+  begin
+    # input number in Parcel ID Search form field
+    portal.text_field(id: 'ctlBodyPane_ctl05_ctl01_txtParcelID').set "#{parcel_id}"
+
+    # hit enter, involk JS
+    portal.send_keys :return
+
+    # scrape paracel data
+    parcel_scraper(portal.html, parcel_id)
+  rescue Watir::Exception::UnknownObjectException
+    # close window
+    portal.quit
+
+    # open new window
+    browser = Watir::Browser.new
+
+
+    # open another browser & reauthenticate
+    open_page(browser)
+    # fillout error/rowbot messages
+    binding.pry
+    # go scrape data that errored
+    insert_lot_number(parcel_id, browser)
+  end
+end
+
 def parcel_scraper(html, id)
   parsed_page = Nokogiri::HTML(html)
 
   new_row = [id, 'JASPER']
-
-  # unless there are NO tables on the page parse it
-  # catching no result pages
+  # binding.pry
+  # unless there are NO sections on the page parse it
+  # tryin to catch no result pages
   unless parsed_page.css('table').empty?
     # Summary table has property info, pulling tr w/
     summary_rows = parsed_page.css('#ctlBodyPane_ctl00_mSection tr')
     prop_addy_row = nil
     summary_rows.each do |tr|
-        prop_addy_row = tr if tr.css('td').find {|td| td.text.strip == "Property Address"} != nil
+       prop_addy_row = tr if tr.css('td').find {|td| td.text.strip == "Property Address"} != nil
     end
 
 
     # Property addy & Property City, State Zip
     if prop_addy_row.css('span').text != 'N/A'
-        prop_addy = prop_addy_row.css('td span')[0].children.map {|node| node.text.strip unless node.text.strip.empty?}
-        new_row << prop_addy.first
-        new_row = formated_cit_st_zip( prop_addy.last, new_row)
+      prop_addy = prop_addy_row.css('td span')[0].children.map {|node| node.text.strip unless node.text.strip.empty?}
+      new_row << prop_addy.first
+      new_row = formated_cit_st_zip( prop_addy.last, new_row)
     else
-        new_row << 'ADDRESS UNKNOWN'
-        new_row << 'N/A, IA N/A'
+      new_row << 'ADDRESS UNKNOWN'
+      new_row << 'N/A, IA N/A'
     end
 
-        # Short Legal Description
+      # Short Legal Description
     prop_descrip_node = nil
     summary_rows.each do |tr|
-        tr.css('td').each {|td| prop_descrip_node = td.next_element if td.children.text.strip == "Brief Tax Description" }
+      tr.css('td').each {|td| prop_descrip_node = td.next_element if td.children.text.strip == "Brief Tax Description" }
     end
 
     if prop_descrip_node != nil
-        new_row << prop_descrip_node.css('span').text
+      new_row << prop_descrip_node.css('span').text
     else
-        new_row << 'N/A'
+      new_row << 'N/A'
     end
 
     # owner table has owner name & mailing addy
@@ -110,7 +148,6 @@ def parcel_scraper(html, id)
       target_td = arr.first.children[-2]
       owner_mail_table = target_td.children[1..-1].map{|node| node.text.strip unless node.text.strip == ''}.compact!
     end
-    
     # want the 2nd set of data, 1st is header info
     # Owner name
     # capture return of owner_info_setup, since added data in method
@@ -118,6 +155,12 @@ def parcel_scraper(html, id)
 
     # Property Size
     prop_size_row = parsed_page.css('#ctlBodyPane_ctl03_mSection .tabular-data-two-column tr').last
+    if prop_size_row.nil?
+      summary_rows.each do |tr|
+        prop_size_row = tr if tr.css('td').find {|td| td.text.strip == "Gross Acres"} != nil
+      end
+    end
+    # binding.pry
     new_row << prop_size_row.css('td span').first.text
 
     # Market Value
@@ -126,16 +169,18 @@ def parcel_scraper(html, id)
     new_row << prop_value_tds.first.text
 
     # Tag
-    new_row << '20190923 - IA - Jasper Cty'
+    new_row << '20190928 - IA - Jasper Cty'
+    # new_row << '20190923 - IA - Jasper Cty'
   else
     binding.pry
     new_row << 'NO DATA - CHECK RESULTS'
   end
+
   @scraper_data << new_row
   # binding.pry
 
   if @scraper_data.length.even?
-    # headers = ['APN', 'JASPER', 'Property Address', 'Property City, State Zip', 'Short Legal Description', 'Note', 'Type', 'Company', 'Last Name', 'First Name', 'Address', 'City, State Zip', 'Property Size',	'Market Value', 'Tag']
+    # headers = ['APN', 'Property County', 'Property Address', 'Property City, State Zip', 'Short Legal Description', 'Note', 'Type', 'Company', 'Last Name', 'First Name', 'Address', 'City, State Zip', 'Property Size',	'Market Value', 'Tag']
     # I.E: Enew_row =["02.14.302.023", "107 RAILROAD ST", "BAXTER IA 50028", "RAILROAD HEIGHTS LOT 9", "Owner count: 2, has a DBA", "Individual", nil, "Kunkel", "Daniel G & Colette J", "PO Box 481", "Baxter IA 50028", "0.06", "$4,140", "20190923 - IA - Jasper Cty"]
     # csv_tool(headers, @scraper_data)
 
@@ -164,31 +209,22 @@ def owner_info_setup(arr, new_csv_row, mail_arr)
     addy_arr = mail_arr.first.children[1..-1].map(&:text).delete_if(&:empty?)
     mailing_addy = (addy_arr.count == 2) ? addy_arr : address_join(addy_arr)
   end
-
   # site has 2 rows for 1 owner, header & owner info
   if arr.count > 2
-    # binding.pry
     # skip header row
-    owners = arr.css("td")[1..-1].map do |td|
-        a_tag_data = td.css("a").map(&:text).delete_if(&:empty?)
-        # binding.pry
-        # avoiding tds w/br tags, they return [] for a_tag_data
-        # only want to enter if ther are NO a tags OR a tag only have 1 set of txt
-        # AND there ARE is a span tag w/in TD - sometimes link is addy || person name
-        # when only a name, doesn't hv a 'SPAN' tag
-        if (a_tag_data.empty? || a_tag_data.size == 1) && !td.children.map(&:name).include?('br') && !td.css("span").empty?
-          # if no a tags, target span class
-          td.css("span").map(&:text).delete_if(&:empty?)
-        else
-          a_tag_data
-        end
-      # end.delete_if{|arr| arr == []}.join(' | ')
+
+    #stipulations https://beacon.schneidercorp.com/Application.aspx?AppID=325&LayerID=3398&PageTypeID=4&PageID=2264&Q=453135245&KeyValue=1008281010
+    owners = arr.css("td")[1..-1].map.with_index do |td, i|
+      # children contain data, use strip 2 cause all '\n' w/spaces 2 return ""
+      td.children.map{|node| node.text.strip}.delete_if(&:empty?)
+      # binding.pry
     end.delete_if(&:empty?)
-    binding.pry
+    # binding.pry
     # pull first el out of each array
     owners.map!(&:shift)
 
     new_csv_row = multi_owner_parser(owners, new_csv_row)
+    # binding.pry
     # add mailing owner mailing address
     new_csv_row << mailing_addy[-2]
     # formate mailing city, state zip
@@ -247,7 +283,7 @@ def add_to_csv_row(comapny, csv_row, owner_names_arr)
     csv_row << nil
 
     # handle multiple owner names
-    if owner_names_arr.count == 2
+    if owner_names_arr.count >= 2
       csv_row = multi_owner_name(owner_names_arr, csv_row)
     else
       split_name = owner_names_arr.first.split(', ')
@@ -261,6 +297,8 @@ def add_to_csv_row(comapny, csv_row, owner_names_arr)
 end
 
 def multi_owner_name(names_arr, row_info)
+  # binding.pry
+
   if !names_arr.find{|str| str.upcase.include?('DBA')}.nil?
     o1_name = names_arr[0].split(', ')
     # add owner 1 last name
@@ -270,52 +308,110 @@ def multi_owner_name(names_arr, row_info)
     return row_info
   end
 
-  # work with 1st 2 names in array, check 2 see if husband/wife
-  # owner fullnames in arrays
-  o1_name = names_arr[0].split(', ')
-  o2_name = names_arr[1].split(', ')
-  # owner last names
-  o1_lname = o1_name.shift
-  o2_lname = o2_name.shift
-  # formte name for same & diff last names
-  same_lname =  o1_name.join(' ') + ' & ' + o2_name.join(' ')
-  diff_lname =  o1_name.join(' ') + ' & ' + o2_lname + ' ' +  o2_name.join(' ')
-  # select name
-  name = (o1_lname == o2_lname) ? same_lname : diff_lname
+  hash_arr = names_arr.map do |fname|
+    name_arr = fname.split(', ')
+    {lname: name_arr[0], fname: name_arr[1]}
+  end
+
+  # get 1st last name
+  surname = hash_arr[0][:lname]
+  # look at each last name if the same collect 1st name in an arr & replace hash w/nil value
+  same_lnames = []
+  # dnt use map b/c when only 2 names & both hv same lname
+  # same_lnames val becomes [], b/c of compact!
+  hash_arr.each_with_index do |hash, i|
+    if hash[:lname] == surname
+      same_lnames << hash[:fname]
+      hash_arr[i] = nil
+    end
+  end.compact!
+  # compact removing added nils from hash_arr empty
+  # join names w/'&', nothing since just 1 name or commas based on number of names
+  if same_lnames.count == 2
+    same_lnames = same_lnames.join( ' & ')
+  elsif same_lnames.count == 1
+    same_lnames = same_lnames[0]
+  else
+    arr_final_name = same_lnames.pop
+    same_lnames = same_lnames.join(', ') + ' & ' + arr_final_name
+  end
+  # place holder for final name to be added in row
+  combined_names = ''
+  if !(hash_arr.empty?)
+    other_names = hash_arr.map {|hash| hash.values.join(' ') }
+    other_names.join( ' & ')
+    combined_names = same_lnames + ' & ' + other_names.join( ' & ')
+    row_info[5] = row_info[5] + ', DIFF LAST NAMES'
+  else
+    combined_names = same_lnames
+  end
+
+  # binding.pry
   # add owner 1 last name
-  row_info <<  o1_lname
+  row_info <<  surname
   # add formated name
-  row_info <<  name
+  row_info <<  combined_names
   row_info
 end
 
 def formated_cit_st_zip(mail_info, csv_row)
   # find words with exactly TWO capital letters
-  state = mail_info.match(/\b[A-Z]{2}\b/)[0]
-  # need to add comma in to seperate city & stat
-  # delete anything that's NOT a word or number
-  parsed_info = mail_info.split(/\b/).delete_if{|txt| !txt.match?(/[a-zA-Z]|\d/)}
-  # get index of state
-  idx = parsed_info.index(state)
-  # find all text before state value
-  before_state_txt = parsed_info[0...idx].join(' ') + ', '
-  # find all text after state value
-  state_and_after_txt = parsed_info[idx..-1].join(' ')
-  # join info together again
-  updated_cit_st_zip = before_state_txt + state_and_after_txt
-  # add owner city, state zip
-  csv_row << updated_cit_st_zip
+  # binding.pry
+   state = mail_info.match(/\b[A-Z]{2}\b/)
+  unless state.nil?
+    state = state[0]
+    # need to add comma in to seperate city & stat
+    # delete anything that's NOT a word or number
+    parsed_info = mail_info.split(/\b/).delete_if{|txt| !txt.match?(/[a-zA-Z]|\d/)}
+    # get index of state
+    idx = parsed_info.index(state)
+    # find all text before state value
+    before_state_txt = parsed_info[0...idx].join(' ') + ', '
+    # add '-' btw 9 digit zip codes pull everything after state idx
+    zip = parsed_info[(idx+1)..-1].join('-')
+    # join all text after state value
+    state_and_after_txt = state + ' ' + zip
+    # join info together again
+    updated_cit_st_zip = before_state_txt + state_and_after_txt
+    # add owner city, state zip
+    # binding.pry
+    csv_row << updated_cit_st_zip
+  else
+    csv_row << mail_info + ', CHECK RESULTS'
+  end
   csv_row
 end
 
 def address_join(arr)
   cit_st_zip = arr.pop
-  address = arr.join(', ')
+  address = (arr[0].include?('&')) ? arr.pop : arr.join(', ')
   arr.clear # clear arr
   #add elements again
   arr << address && arr << cit_st_zip
   arr
 end
+
+# def inital_multi_owner_name(names_arr, row_info)
+  # binding.pry
+  # old code
+  # work with 1st 2 names in array, check 2 see if husband/wife
+  # owner fullnames in arrays
+  # o1_name = names_arr[0].split(', ')
+  # o2_name = names_arr[1].split(', ')
+  # # owner last names
+  # o1_lname = o1_name.shift
+  # o2_lname = o2_name.shift
+  # # formte name for same & diff last names
+  # same_lname =  o1_name.join(' ') + ' & ' + o2_name.join(' ')
+  # diff_lname =  o1_name.join(' ') + ' & ' + o2_lname + ' ' +  o2_name.join(' ')
+  # # select name
+  # name = (o1_lname == o2_lname) ? same_lname : diff_lname
+  # add owner 1 last name
+  # row_info <<  o1_lname
+  # add formated name
+  # row_info <<  name
+# end
+
 
 # main link https://beacon.schneidercorp.com/Application.aspx?AppID=325&LayerID=3398&PageTypeID=2&PageID=2260
 
